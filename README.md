@@ -10,4 +10,3 @@ Bu proje, bir web arayüzü üzerinden YouTube videolarını indirmenize ve ffmp
    cd my_youtube_downloader
    flask run
 # flask_youtube_video_cut_dowload
-# flask_youtube_video_cut_dowload
