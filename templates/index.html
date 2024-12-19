@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video İndirici ve Kesici</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #5d5c61;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+            color: #5d5c61;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 15px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status-message {
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>YouTube Video İndirici ve Kesici</h1>
+    <form method="post" action="/">
+        <label for="url">YouTube URL:</label>
+        <input type="text" id="url" name="url" placeholder="YouTube video URL'sini girin" required>
+
+        <label for="start">Başlangıç Zamanı (örnek: 00:01:30 ya da sadece saniye cinsinden):</label>
+        <input type="text" id="start" name="start_time" placeholder="Başlangıç zamanını girin">
+
+        <label for="end">Bitiş Zamanı (örnek: 00:03:45 ya da sadece saniye cinsinden):</label>
+        <input type="text" id="end" name="end_time" placeholder="Bitiş zamanını girin">
+
+        <button type="submit">İndir ve Kes</button>
+    </form>
+
+    {% if status_message %}
+        <div class="status-message">
+            <strong>Durum:</strong> {{ status_message }}
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>
