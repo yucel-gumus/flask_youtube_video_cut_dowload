@@ -58,33 +58,233 @@
             margin-top: 20px;
             text-align: center;
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #ddd;
             border-radius: 5px;
+            background-color: #e7f3fe;
+            color: #0d6efd;
+        }
+        .error-message {
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #f5c2c7;
+            border-radius: 5px;
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        /* Style for the dynamic job status area */
+        #job-status-area {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
             background-color: #f9f9f9;
+            text-align: center;
+            display: none; /* Initially hidden */
+        }
+        #job-status-area.processing {
+            border-color: #ffc107; /* Yellow border for processing */
+            background-color: #fff3cd;
+            color: #664d03;
+        }
+        #job-status-area.completed {
+            border-color: #198754; /* Green border for success */
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        #job-status-area.error {
+            border-color: #dc3545; /* Red border for error */
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        #job-status-area .progress-bar {
+            width: 100%;
+            background-color: #e9ecef;
+            border-radius: .25rem;
+            height: 1rem;
+            margin-top: 10px;
+            overflow: hidden;
+            position: relative; 
+        }
+        #job-status-area .progress-bar-inner {
+            background-color: #0d6efd; /* Blue progress */
+            height: 100%;
+            width: 0; /* Start with 0 width */
+            transition: width 0.2s ease-in-out;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+             /* Basic indeterminate animation */
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        @keyframes progress-bar-stripes {
+            from { background-position: 1rem 0; }
+            to { background-position: 0 0; }
+        }
+        #job-status-area a {
+            font-weight: bold;
+            color: #0a58ca;
+            text-decoration: none;
+        }
+        #job-status-area a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>YouTube Video İndirici ve Kesici</h1>
-    <form method="post" action="/">
+    <form id="video-form" method="post" action="/">
         <label for="url">YouTube URL:</label>
         <input type="text" id="url" name="url" placeholder="YouTube video URL'sini girin" required>
 
-        <label for="start">Başlangıç Zamanı (örnek: 00:01:30 ya da sadece saniye cinsinden):</label>
-        <input type="text" id="start" name="start_time" placeholder="Başlangıç zamanını girin">
+        <label for="start">Başlangıç Zamanı (SS, MM:SS, HH:MM:SS):</label>
+        <input type="text" id="start" name="start_time" placeholder="Boş bırakırsanız baştan başlar">
 
-        <label for="end">Bitiş Zamanı (örnek: 00:03:45 ya da sadece saniye cinsinden):</label>
-        <input type="text" id="end" name="end_time" placeholder="Bitiş zamanını girin">
+        <label for="end">Bitiş Zamanı (SS, MM:SS, HH:MM:SS):</label>
+        <input type="text" id="end" name="end_time" placeholder="Boş bırakırsanız sona kadar gider">
 
-        <button type="submit">İndir ve Kes</button>
+        <button id="submit-button" type="submit">İndir ve Kes</button>
     </form>
 
-    {% if status_message %}
+    {# Display initial server-side error messages (e.g., invalid job ID) #}
+    {% if error_message %}
+        <div class="error-message">
+            <strong>Hata:</strong> {{ error_message }}
+        </div>
+    {% endif %}
+
+    {# Area to display dynamic job status #}
+    <div id="job-status-area" data-initial-status="{{ initial_status | tojson | safe if initial_status else 'null' }}">
+        <p id="job-status-message"></p>
+        {# Progress bar (optional, simple indeterminate for now) #}
+        <div class="progress-bar" id="progress-bar" style="display: none;">
+            <div class="progress-bar-inner" id="progress-bar-inner"></div>
+        </div>
+        <p id="job-result"></p> {# For download link or error details #}
+    </div>
+
+    {# Old status message (can be removed or kept for non-JS fallback) #}
+    {# {% if status_message %}
         <div class="status-message">
             <strong>Durum:</strong> {{ status_message }}
         </div>
-    {% endif %}
+    {% endif %} #}
+
 </div>
+
+<script>
+    // Get elements
+    const jobStatusArea = document.getElementById('job-status-area');
+    const jobStatusMessage = document.getElementById('job-status-message');
+    const jobResult = document.getElementById('job-result');
+    const progressBar = document.getElementById('progress-bar');
+    const progressBarInner = document.getElementById('progress-bar-inner');
+    const videoForm = document.getElementById('video-form');
+    const submitButton = document.getElementById('submit-button');
+
+    // Get job ID from template (passed from Flask)
+    const jobId = "{{ job_id|default('', true) }}"; // Use default filter for safety
+    let pollInterval = null;
+
+    function updateStatus(statusData) {
+        if (!jobStatusArea) return; // Exit if elements not found
+
+        jobStatusArea.style.display = 'block'; // Show the status area
+        jobStatusArea.className = statusData.status || 'processing'; // Add status class for styling
+        jobStatusMessage.textContent = statusData.message || 'Durum güncelleniyor...';
+        jobResult.innerHTML = ''; // Clear previous result
+        progressBar.style.display = 'none'; // Hide progress bar by default
+
+        // Handle different statuses
+        if (statusData.status === 'queued' || statusData.status === 'downloading' || statusData.status === 'cutting') {
+            progressBar.style.display = 'block';
+            progressBarInner.style.width = '100%'; // Indeterminate
+            jobStatusArea.classList.add('processing');
+            // Disable form while processing
+            disableForm(true);
+        } else if (statusData.status === 'completed') {
+            jobStatusArea.classList.add('completed');
+            if (statusData.filename && statusData.download_path) {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `/download/${jobId}`;
+                downloadLink.textContent = `'${statusData.filename}' İndir`;
+                // downloadLink.setAttribute('download', statusData.filename); // Optional: Suggest filename
+                jobResult.appendChild(downloadLink);
+            }
+            clearInterval(pollInterval); // Stop polling
+            disableForm(false); // Re-enable form
+        } else if (statusData.status === 'error') {
+            jobStatusArea.classList.add('error');
+            jobResult.textContent = `Detay: ${statusData.message || 'Bilinmeyen hata'}`;
+            clearInterval(pollInterval); // Stop polling
+            disableForm(false); // Re-enable form
+        } else {
+            // Unknown status or initial state
+             disableForm(false);
+        }
+    }
+
+    function pollJobStatus() {
+        if (!jobId) return;
+
+        fetch(`/status/${jobId}`)
+            .then(response => {
+                if (!response.ok) {
+                    // Handle HTTP errors (like 404 Not Found)
+                    return response.json().then(errData => {
+                         throw new Error(errData.message || `Sunucu hatası: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                updateStatus(data);
+                // Stop polling check moved inside updateStatus
+            })
+            .catch(error => {
+                console.error('Durum sorgulama hatası:', error);
+                updateStatus({ status: 'error', message: `Durum alınamadı: ${error.message}` });
+                clearInterval(pollInterval); // Stop polling on fetch error
+                disableForm(false);
+            });
+    }
+
+    function disableForm(disabled) {
+        const inputs = videoForm.querySelectorAll('input, button');
+        inputs.forEach(input => input.disabled = disabled);
+        submitButton.textContent = disabled ? 'İşleniyor...' : 'İndir ve Kes';
+    }
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Check for initial status passed from server (on page load/redirect)
+        // Read status from data attribute instead of direct embedding
+        const initialStatusJson = jobStatusArea.dataset.initialStatus;
+
+        if (jobId && initialStatusJson && initialStatusJson !== 'null') { // Check against string 'null'
+            try {
+                const initialStatusData = JSON.parse(initialStatusJson);
+                 if (initialStatusData && typeof initialStatusData === 'object') {
+                     updateStatus(initialStatusData);
+                 }
+            } catch (e) {
+                console.error("Başlangıç durumu parse edilemedi:", e, "Data:", initialStatusJson);
+            }
+        }
+
+        // Start polling if we have a job ID and it's not already completed/error
+        const currentState = jobStatusArea.className;
+        if (jobId && currentState !== 'completed' && currentState !== 'error') {
+            pollInterval = setInterval(pollJobStatus, 2000); // Poll every 2 seconds
+            // Initial poll immediately for faster feedback
+            pollJobStatus();
+        }
+    });
+
+</script>
+
 </body>
 </html>

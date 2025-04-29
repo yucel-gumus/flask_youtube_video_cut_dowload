@@ -1,2 +1,3 @@
-Flask==2.2.5
-yt-dlp==2023.07.06
+Flask>=2.2.5
+yt-dlp>=2025.3.31
+gunicorn>=20.1.0
