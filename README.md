@@ -67,18 +67,6 @@ Bu Flask tabanlı web uygulaması, YouTube videolarını indirmenize ve belirled
 4.  İşlem durumu arayüzde görünecektir.
 5.  İşlem başarıyla tamamlandığında, kesilmiş (veya sadece indirilmiş) videoyu indirmek için bir bağlantı görünecektir.
 
-## Railway ile Dağıtım (Deployment)
-
-Bu proje, Railway üzerinde kolayca dağıtılmak üzere yapılandırılmıştır:
-
-1.  Projenizi bir GitHub deposuna yükleyin.
-2.  Railway hesabınıza giriş yapın ve yeni bir proje oluşturun.
-3.  Proje kaynağı olarak GitHub deponuzu seçin.
-4.  Railway, `Procfile` ve `requirements.txt` dosyalarını otomatik olarak algılayacaktır.
-5.  **Önemli (`ffmpeg`):** Railway üzerinde `ffmpeg`'in kullanılabilir olması için proje kök dizinine `nixpacks.toml` dosyası eklenmiştir. Bu dosya, build sırasında `ffmpeg` paketinin kurulmasını sağlar.
-6.  **Önemli (İndirme Sınırlamaları):** YouTube, sunucu IP adreslerinden gelen isteklere karşı bot koruması uygulayabilir. Bu nedenle, **deploy edilmiş uygulama bazı videoları indirirken "Sign in to confirm you're not a bot" gibi hatalar verebilir.** Bu tür videoları indirmek için kimlik doğrulaması (cookie'ler) gerekir. Cookie yönetimi deploy edilmiş bir web uygulaması için karmaşık ve riskli olduğundan, bu özellik şu an için eklenmemiştir. Bu tür videoları indirmek için uygulamayı yerel makinenizde çalıştırmanız gerekebilir.
-7.  Dağıtımın tamamlanmasını bekleyin ve sağlanan URL üzerinden uygulamanıza erişin.
-
 ## Gelecekteki Olası Geliştirmeler
 
 *   Daha gelişmiş ilerleme takibi (`yt-dlp` ve `ffmpeg` çıktılarından).
