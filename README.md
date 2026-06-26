@@ -1,77 +1,78 @@
-# YouTube Video İndirici ve Kesici Web Uygulaması
+# YouTube Video İndirici ve Kesici
 
-Bu Flask tabanlı web uygulaması, YouTube videolarını indirmenize ve belirlediğiniz zaman aralıklarına göre kesmenize olanak tanır. İşlemler arka planda yürütülür ve durum güncellemeleri web arayüzünde dinamik olarak gösterilir.
+Flask web uygulaması: YouTube URL'sinden **yt-dlp** ile indirme, isteğe bağlı **ffmpeg** ile zaman aralığına göre kesme; işler thread + in-memory job store ile arka planda yürür.
 
-[![Python Version](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-2.2+-black.svg)](https://flask.palletsprojects.com/)
-[![yt-dlp](https://img.shields.io/badge/yt--dlp-latest-brightgreen.svg)](https://github.com/yt-dlp/yt-dlp)
-[![ffmpeg](https://img.shields.io/badge/ffmpeg-required-yellow.svg)](https://ffmpeg.org/)
+**GitHub:** [yucel-gumus/flask_youtube_video_cut_dowload](https://github.com/yucel-gumus/flask_youtube_video_cut_dowload)
+
+[![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/) [![Flask](https://img.shields.io/badge/Flask-2.2+-black.svg)](https://flask.palletsprojects.com/)
+
+---
 
 ## Özellikler
 
-*   **YouTube Video İndirme:** Sağlanan URL'den videoları indirir (`yt-dlp` kullanarak).
-*   **Video Kesme:** İndirilen videoları belirtilen başlangıç ve bitiş zamanlarına göre keser (`ffmpeg` kullanarak).
-*   **Web Arayüzü:** Basit ve kullanıcı dostu bir web arayüzü.
-*   **Asenkron İşlemler:** İndirme ve kesme işlemleri arka planda çalışır, arayüz kilitlenmez.
-*   **Dinamik Durum Takibi:** İşlemin durumu (sıraya alındı, indiriliyor, kesiliyor, tamamlandı, hata) arayüzde gerçek zamanlı olarak güncellenir.
-*   **Hata Yönetimi:** Geçersiz girdiler ve işlem hataları için bilgilendirici mesajlar gösterilir.
-*   **Kolay Dağıtım:** `Procfile` ve `requirements.txt` ile Railway gibi platformlara kolayca dağıtılabilir.
+- URL doğrulama (youtube.com / youtu.be)
+- Zaman formatları: saniye, `MM:SS`, `HH:MM:SS`
+- Job durumu: kuyruk, indirme, kesme, tamamlandı, hata — JSON polling
+- İndirme linki tamamlanınca arayüzde
+- `utils/youtube_utils.py`, `utils/ffmpeg_utils.py` modüler yapı
+- Railway / benzeri PaaS için `Procfile` + `requirements.txt`
+
+---
+
+## Mimari
+
+```
+Browser (templates/)
+    │ POST /process
+    ▼
+Flask app.py ──► threading.Thread
+    │                ├── download_video (yt-dlp)
+    │                └── cut_video (ffmpeg)
+    ▼
+jobs[job_id] dict ──► GET status / download
+```
+
+Üretimde ölçek için Redis/Celery önerilir (README'deki gelecek işler).
+
+---
 
 ## Gereksinimler
 
-*   **Python:** 3.13 veya üzeri (Önerilen sürüm `runtime.txt` içinde belirtilmiştir)
-*   **pip:** Python paket yöneticisi
-*   **ffmpeg:** Video kesme işlemi için gereklidir. Sisteminize kurmanız ve PATH ortam değişkenine eklemeniz gerekir.
-    *   [ffmpeg İndirme ve Kurulum Kılavuzu](https://ffmpeg.org/download.html)
-*   **Git:** Versiyon kontrol sistemi (isteğe bağlı, projeyi klonlamak için)
+- Python 3.13+ (`runtime.txt` ile uyumlu)
+- **ffmpeg** PATH'te (`ffmpeg -version`)
+- **yt-dlp** (`requirements.txt`)
 
-## Yerel Kurulum ve Çalıştırma
+---
 
-1.  **Projeyi Klonlayın (veya İndirin):**
-    ```bash
-    git clone https://github.com/yucel-gumus/flask_youtube_video_cut_dowload.git
-    cd flask_youtube_video_cut_dowload
-    ```
+## Kurulum
 
-2.  **Sanal Ortam Oluşturun ve Aktifleştirin:**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # macOS/Linux
-    # venv\Scripts\activate  # Windows
-    ```
+```bash
+git clone https://github.com/yucel-gumus/flask_youtube_video_cut_dowload.git
+cd flask_youtube_video_cut_dowload
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+flask run
+```
 
-3.  **Bağımlılıkları Kurun:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+`http://127.0.0.1:5000`
 
-4.  **ffmpeg'in Kurulu Olduğundan Emin Olun:**
-    Terminalde `ffmpeg -version` komutunu çalıştırarak ffmpeg'in kurulu ve erişilebilir olup olmadığını kontrol edin.
-
-5.  **Flask Uygulamasını Başlatın:**
-    ```bash
-    flask run
-    ```
-
-6.  Uygulamaya tarayıcınızdan erişin (varsayılan adres: `http://127.0.0.1:5000`).
+---
 
 ## Kullanım
 
-1.  Web arayüzündeki "YouTube URL" alanına indirmek istediğiniz videonun linkini yapıştırın.
-2.  Videoyu kesmek istiyorsanız, "Başlangıç Zamanı" ve "Bitiş Zamanı" alanlarına istediğiniz zamanları girin. Formatlar:
-    *   Sadece saniye (örn: `90`)
-    *   Dakika:Saniye (örn: `01:30`)
-    *   Saat:Dakika:Saniye (örn: `00:01:30`)
-    *   Boş bırakırsanız, videonun başından başlar veya sonuna kadar gider.
-3.  "İndir ve Kes" butonuna tıklayın.
-4.  İşlem durumu arayüzde görünecektir.
-5.  İşlem başarıyla tamamlandığında, kesilmiş (veya sadece indirilmiş) videoyu indirmek için bir bağlantı görünecektir.
+1. YouTube linkini yapıştır
+2. İsteğe bağlı başlangıç/bitiş zamanı
+3. İşlem bitince dosyayı indir
 
-## Gelecekteki Olası Geliştirmeler
+---
 
-*   Daha gelişmiş ilerleme takibi (`yt-dlp` ve `ffmpeg` çıktılarından).
-*   Video kalitesi seçme seçeneği.
-*   İndirilen/kesilen dosyaları yönetmek için bir arayüz (listeleme, silme).
-*   Daha sağlam bir arka plan görev sistemi (örn: Celery, RQ).
-*   Yapılandırma dosyasından ayarları okuma (örn: indirme dizini).
-*   Daha modern bir UI (örn: Bootstrap, Tailwind CSS).
+## Güvenlik
+
+- Herkese açık deploy'da abuse riski — rate limit ve auth ekleyin
+- İndirilen dosyaları periyodik temizleyin
+
+---
+
+## Lisans
+
+MIT.
