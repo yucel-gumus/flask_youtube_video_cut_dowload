@@ -1,78 +1,90 @@
-# YouTube Video İndirici ve Kesici
+# 🎬 YouTube Video İndirici ve Kesici (Flask yt-dlp & FFmpeg Processor)
 
-Flask web uygulaması: YouTube URL'sinden **yt-dlp** ile indirme, isteğe bağlı **ffmpeg** ile zaman aralığına göre kesme; işler thread + in-memory job store ile arka planda yürür.
+YouTube Video İndirici ve Kesici; kullanıcıların YouTube video adreslerini girerek videoları doğrudan sunucuya indirmesini ve ardından belirledikleri zaman aralıklarına göre (kırpma/kesme) sadece istedikleri kısımları cihazlarına kaydetmesini sağlayan **Python & Flask** tabanlı bir web uygulamasıdır.
 
-**GitHub:** [yucel-gumus/flask_youtube_video_cut_dowload](https://github.com/yucel-gumus/flask_youtube_video_cut_dowload)
-
-[![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/) [![Flask](https://img.shields.io/badge/Flask-2.2+-black.svg)](https://flask.palletsprojects.com/)
+Uygulama, uzun indirme işlemlerinin web isteklerini bloke etmesini engellemek için **arka plan iş parçacıkları (threading)** mimarisiyle çalışır.
 
 ---
 
-## Özellikler
+## 🌟 Öne Çıkan Özellikler
 
-- URL doğrulama (youtube.com / youtu.be)
-- Zaman formatları: saniye, `MM:SS`, `HH:MM:SS`
-- Job durumu: kuyruk, indirme, kesme, tamamlandı, hata — JSON polling
-- İndirme linki tamamlanınca arayüzde
-- `utils/youtube_utils.py`, `utils/ffmpeg_utils.py` modüler yapı
-- Railway / benzeri PaaS için `Procfile` + `requirements.txt`
+* 🚀 **Asenkron Arka Plan İşleme (Threading):** İndirme ve kesme işlemleri sunucu tarafında `threading.Thread` ile arka planda çalıştırılır. Kullanıcı arayüzü işlem devam ederken donmaz.
+* 🔄 **JSON Polling Durum Takibi:** İstemci, bir işlem başlattıktan sonra `/status/<job_id>` API endpoint'ini periyodik olarak sorgular (polling) ve arayüzdeki durum göstergesini (`pending`, `downloading`, `cutting`, `completed`, `failed`) gerçek zamanlı günceller.
+* 📦 **yt-dlp ile Güçlü İndirme Motoru:** En güncel ve popüler video indirme kütüphanesi olan `yt-dlp` kullanılarak YouTube video ve ses akışları en yüksek kalitede çekilir.
+* ✂️ **FFmpeg ile Hassas Kesme:**
+  * Kullanıcılar saniye, `MM:SS` veya `HH:MM:SS` formatında esnek başlangıç/bitiş zamanları tanımlayabilir.
+  * Sistem, arka planda **FFmpeg** CLI komutlarını tetikleyerek videoyu belirlenen zaman aralığına göre tam karesinde keser ve muxing (ses ve görüntüyü birleştirme) yapar.
+* 📁 **Kuyruk ve Bellek Yönetimi:** İş durumları sunucu RAM'inde (in-memory job store) güvenli bir şekilde saklanır.
 
 ---
 
-## Mimari
+## 🏗️ Sistem Akışı ve Mimarisi
 
 ```
-Browser (templates/)
-    │ POST /process
-    ▼
-Flask app.py ──► threading.Thread
-    │                ├── download_video (yt-dlp)
-    │                └── cut_video (ffmpeg)
-    ▼
-jobs[job_id] dict ──► GET status / download
+[ Kullanıcı URL + Süre Girer ] ──► [ POST /process ]
+                                          │
+                                          ▼
+[ JSON Yanıtı: {job_id} ] ◄── [ Başlat: threading.Thread ]
+      │
+      ├──► (Arka Planda) ──► 1. yt-dlp İndirme ──► 2. FFmpeg Kesme (Trim)
+      │
+[ GET /status/<job_id> ] ──► (Polling durumunu okur ve UI'da gösterir)
+      │
+      ▼
+[ İşlem Tamamlandı ] ──► [ Kullanıcı İndirme Linkini Alır ]
 ```
 
-Üretimde ölçek için Redis/Celery önerilir (README'deki gelecek işler).
+---
+
+## 🛠️ Teknoloji Stack
+
+* **Backend Framework:** Python 3.13, Flask.
+* **İndirme Aracı:** `yt-dlp`.
+* **Medya İşleme:** FFmpeg CLI.
+* **Arayüz Tasarımı:** HTML5, CSS3, JavaScript (polling client).
 
 ---
 
-## Gereksinimler
+## 📂 Proje Klasör Yapısı
 
-- Python 3.13+ (`runtime.txt` ile uyumlu)
-- **ffmpeg** PATH'te (`ffmpeg -version`)
-- **yt-dlp** (`requirements.txt`)
+```
+flask_youtube_video_cut_dowload/
+├── templates/
+│   └── index.html            # İndirme formu ve polling durum paneli
+├── utils/
+│   ├── ffmpeg_utils.py       # FFmpeg trim/cut komut sarmalayıcısı
+│   └── youtube_utils.py      # yt-dlp indirme yöneticisi
+├── app.py                    # Flask sunucu rotaları ve thread kuyruk yönetimi
+├── requirements.txt          # Gerekli kütüphaneler listesi
+└── README.md
+```
 
 ---
 
-## Kurulum
+## 🚀 Kurulum ve Yerel Çalıştırma
 
+### Ön Gereksinimler
+Sisteminizde **FFmpeg** yüklü ve PATH çevresel değişkenine tanımlı olmalıdır:
+* **macOS:** `brew install ffmpeg`
+* **Ubuntu/Debian:** `sudo apt update && sudo apt install ffmpeg`
+
+### 1. Bağımlılıkları Yükleyin
 ```bash
 git clone https://github.com/yucel-gumus/flask_youtube_video_cut_dowload.git
 cd flask_youtube_video_cut_dowload
-python3 -m venv venv && source venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-flask run
 ```
 
-`http://127.0.0.1:5000`
+### 2. Uygulamayı Başlatın
+```bash
+flask run
+```
+Uygulama `http://127.0.0.1:5000` adresinde yerel sunucuda çalışmaya başlayacaktır.
 
 ---
 
-## Kullanım
-
-1. YouTube linkini yapıştır
-2. İsteğe bağlı başlangıç/bitiş zamanı
-3. İşlem bitince dosyayı indir
-
----
-
-## Güvenlik
-
-- Herkese açık deploy'da abuse riski — rate limit ve auth ekleyin
-- İndirilen dosyaları periyodik temizleyin
-
----
-
-## Lisans
-
-MIT.
+## 🔗 Bağlantılar
+* **GitHub Repository:** [https://github.com/yucel-gumus/flask_youtube_video_cut_dowload](https://github.com/yucel-gumus/flask_youtube_video_cut_dowload)
+* **Geliştirici LinkedIn:** [https://linkedin.com/in/yucel-gumus](https://linkedin.com/in/yucel-gumus)
